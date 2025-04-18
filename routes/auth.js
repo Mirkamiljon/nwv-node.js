@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const logger = require('../logger');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
@@ -11,18 +12,13 @@ router.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Barcha maydonlarni to‘ldiring' });
-    }
-
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Parol kamida 8 belgidan iborat bo‘lishi kerak' });
-    }
-    if (!/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-      return res.status(400).json({ error: 'Parolda kamida bitta katta harf va bitta raqam bo‘lishi kerak' });
+      logger.warn(`Ro‘yxatdan o‘tish urinishi: Maydonlar to‘liq emas, email: ${email}`);
+      return res.status(400).json({ error: 'Email, parol va ismni kiriting' });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      logger.warn(`Ro‘yxatdan o‘tish urinishi: ${email} allaqachon mavjud`);
       return res.status(400).json({ error: 'Bu email allaqachon ro‘yxatdan o‘tgan' });
     }
 
@@ -31,30 +27,39 @@ router.post('/register', async (req, res) => {
       email,
       password: hashedPassword,
       name,
+      role: 'user'
     });
     await newUser.save();
 
-    res.json({ message: 'Foydalanuvchi ro‘yxatdan o‘tdi!' });
+    logger.info(`Yangi foydalanuvchi ro‘yxatdan o‘tdi: ${email}`);
+    res.status(201).json({
+      message: 'Foydalanuvchi muvaffaqiyatli ro‘yxatdan o‘tdi',
+      user: { email, name, role: 'user' }
+    });
   } catch (err) {
+    logger.error(`Ro‘yxatdan o‘tish xatosi: ${err.message}`);
     res.status(500).json({ error: 'Server xatosi: ' + err.message });
   }
 });
 
-// Login endpoint
-router.post('/login', async (req, res) => {
+// Admin login endpoint
+router.post('/admin/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
+      logger.warn(`Admin kirish urinishi: Maydonlar to‘liq emas, email: ${email}`);
       return res.status(400).json({ error: 'Email va parolni kiriting' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email, role: 'admin' });
     if (!user) {
+      logger.warn(`Admin kirish urinishi: ${email} topilmadi yoki admin emas`);
       return res.status(400).json({ error: 'Noto‘g‘ri email yoki parol' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      logger.warn(`Admin kirish urinishi: ${email} uchun noto‘g‘ri parol`);
       return res.status(400).json({ error: 'Noto‘g‘ri email yoki parol' });
     }
 
@@ -64,33 +69,11 @@ router.post('/login', async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    res.json({ message: 'Tizimga kirdingiz!', token });
+    logger.info(`Admin kirdi: ${email}`);
+    res.json({ message: 'Admin tizimga kirdi!', token });
   } catch (err) {
+    logger.error(`Admin kirish xatosi: ${err.message}`);
     res.status(500).json({ error: 'Server xatosi: ' + err.message });
-  }
-});
-
-// Middleware: Token tekshiruvi
-const authMiddleware = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ message: 'Token topilmadi' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    res.status(401).json({ message: 'Noto‘g‘ri token' });
-  }
-};
-
-// Users endpoint
-router.get('/users', authMiddleware, async (req, res) => {
-  try {
-    const users = await User.find().select('-password');
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ message: 'Server xatosi', error: err.message });
   }
 });
 

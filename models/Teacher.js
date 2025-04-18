@@ -7,12 +7,12 @@ const teacherSchema = new mongoose.Schema({
   },
   image: {
     type: String,
-    default: 'default-image.jpg', // Agar rasm kiritilmasa
+    default: 'default-image.jpg',
   },
   bio: {
     type: String,
     required: true,
   },
-}, { timestamps: true }); // Yaratilgan va yangilangan vaqtni qo‘shish uchun
+});
 
 module.exports = mongoose.model('Teacher', teacherSchema);

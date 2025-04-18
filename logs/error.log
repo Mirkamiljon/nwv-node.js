@@ -1,1 +1,12 @@
 2025-04-10 10:43:52 [ERROR]: MongoDB ulanish xatosi: querySrv ENOTFOUND _mongodb._tcp.cluster0.tqdfc.mongodb.net
+2025-04-14 13:50:07 [ERROR]: Ro‘yxatdan o‘tish xatosi: Operation `users.findOne()` buffering timed out after 10000ms
+2025-04-14 13:50:33 [ERROR]: Ro‘yxatdan o‘tish xatosi: Operation `users.findOne()` buffering timed out after 10000ms
+2025-04-14 13:50:41 [ERROR]: MongoDB ulanish xatosi: querySrv ETIMEOUT _mongodb._tcp.cluster0.tqdfc.mongodb.net
+2025-04-14 13:54:12 [ERROR]: Ro‘yxatdan o‘tish xatosi: Operation `users.findOne()` buffering timed out after 10000ms
+2025-04-14 13:54:58 [ERROR]: Ro‘yxatdan o‘tish xatosi: Operation `users.findOne()` buffering timed out after 10000ms
+2025-04-14 13:56:40 [ERROR]: Ro‘yxatdan o‘tish xatosi: Operation `users.findOne()` buffering timed out after 10000ms
+2025-04-14 13:57:05 [ERROR]: Ro‘yxatdan o‘tish xatosi: Operation `users.findOne()` buffering timed out after 10000ms
+2025-04-14 13:57:29 [ERROR]: Ro‘yxatdan o‘tish xatosi: Operation `users.findOne()` buffering timed out after 10000ms
+2025-04-14 13:57:50 [ERROR]: Ro‘yxatdan o‘tish xatosi: Operation `users.findOne()` buffering timed out after 10000ms
+2025-04-14 13:59:37 [ERROR]: MongoDB ulanish xatosi: Invalid scheme, expected connection string to start with "mongodb://" or "mongodb+srv://"
+2025-04-14 14:11:44 [ERROR]: POST /api/reviews xatosi: Review validation failed: course: Cast to ObjectId failed for value "1" (type string) at path "course" because of "BSONError"

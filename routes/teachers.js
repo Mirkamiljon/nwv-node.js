@@ -1,15 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const Teacher = require('../models/Teacher');
-const authMiddleware = require('../middleware/auth');
-const adminMiddleware = require('../middleware/adminMiddleware');
+const { adminMiddleware } = require('../middleware/auth');
+const logger = require('../logger');
 
 /**
  * @swagger
- * /teachers:
+ * /api/teachers:
  *   get:
- *     summary: Barcha o‘qituvchilar ro‘yxatini olish
+ *     summary: Barcha o‘qituvchilar ro‘yxatini olish (admin uchun)
  *     tags: [Teachers]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: O‘qituvchilar ro‘yxati
@@ -28,71 +30,29 @@ const adminMiddleware = require('../middleware/adminMiddleware');
  *                     type: string
  *                   bio:
  *                     type: string
+ *       401:
+ *         description: Token topilmadi yoki noto‘g‘ri
+ *       403:
+ *         description: Faqat adminlar uchun
  *       500:
  *         description: Server xatosi
  */
-router.get('/', async (req, res) => {
+router.get('/', adminMiddleware, async (req, res) => {
   try {
-    const teachers = await Teacher.find().select('name image bio'); // Faqat kerakli field’larni qaytarish
+    const teachers = await Teacher.find().select('name image bio');
+    logger.info(`O‘qituvchilar ro‘yxati olindi, admin: ${req.user.email}`);
     res.json(teachers);
   } catch (err) {
-    console.error('GET /teachers xatosi:', err);
+    logger.error(`GET /api/teachers xatosi: ${err.message}`);
     res.status(500).json({ error: 'Server xatosi' });
   }
 });
 
 /**
  * @swagger
- * /teachers/{id}:
- *   get:
- *     summary: Muayyan o‘qituvchini olish
- *     tags: [Teachers]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: O‘qituvchi ID’si
- *     responses:
- *       200:
- *         description: O‘qituvchi ma’lumotlari
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 _id:
- *                   type: string
- *                 name:
- *                   type: string
- *                 image:
- *                   type: string
- *                 bio:
- *                   type: string
- *       404:
- *         description: O‘qituvchi topilmadi
- *       500:
- *         description: Server xatosi
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const teacher = await Teacher.findById(req.params.id).select('name image bio');
-    if (!teacher) {
-      return res.status(404).json({ error: 'O‘qituvchi topilmadi' });
-    }
-    res.json(teacher);
-  } catch (err) {
-    console.error('GET /teachers/:id xatosi:', err);
-    res.status(500).json({ error: 'Server xatosi' });
-  }
-});
-
-/**
- * @swagger
- * /teachers:
+ * /api/teachers:
  *   post:
- *     summary: Yangi o‘qituvchi qo‘shish (faqat adminlar uchun)
+ *     summary: Yangi o‘qituvchi qo‘shish (admin uchun, surat kiritish bilan)
  *     tags: [Teachers]
  *     security:
  *       - bearerAuth: []
@@ -139,35 +99,39 @@ router.get('/:id', async (req, res) => {
  *                       type: string
  *       400:
  *         description: Ism yoki bio kiritilmadi
+ *       401:
+ *         description: Token topilmadi yoki noto‘g‘ri
  *       403:
  *         description: Faqat adminlar uchun
  *       500:
  *         description: Server xatosi
  */
-router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/', adminMiddleware, async (req, res) => {
   try {
     const { name, image, bio } = req.body;
     if (!name || !bio) {
+      logger.warn(`O‘qituvchi qo‘shish urinishi: Ism yoki bio kiritilmadi, admin: ${req.user.email}`);
       return res.status(400).json({ error: 'Ism va bio kiritish shart' });
     }
     const newTeacher = new Teacher({
       name,
-      image: image || 'default-image.jpg', // Agar rasm kiritilmasa, standart qiymat
+      image: image || 'default-image.jpg',
       bio,
     });
     await newTeacher.save();
+    logger.info(`Yangi o‘qituvchi qo‘shildi: ${name}, admin: ${req.user.email}`);
     res.status(201).json({ message: 'O‘qituvchi qo‘shildi!', teacher: newTeacher });
   } catch (err) {
-    console.error('POST /teachers xatosi:', err);
+    logger.error(`POST /api/teachers xatosi: ${err.message}`);
     res.status(500).json({ error: 'Server xatosi' });
   }
 });
 
 /**
  * @swagger
- * /teachers/{id}:
+ * /api/teachers/{id}:
  *   put:
- *     summary: O‘qituvchi ma’lumotlarini yangilash (faqat adminlar uchun)
+ *     summary: O‘qituvchi ma’lumotlarini yangilash (admin uchun, surat yangilash bilan)
  *     tags: [Teachers]
  *     security:
  *       - bearerAuth: []
@@ -218,34 +182,38 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
  *                       type: string
  *       404:
  *         description: O‘qituvchi topilmadi
+ *       401:
+ *         description: Token topilmadi yoki noto‘g‘ri
  *       403:
  *         description: Faqat adminlar uchun
  *       500:
  *         description: Server xatosi
  */
-router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:id', adminMiddleware, async (req, res) => {
   try {
     const { name, image, bio } = req.body;
     const teacher = await Teacher.findById(req.params.id);
     if (!teacher) {
+      logger.warn(`O‘qituvchi yangilash urinishi: ID ${req.params.id} topilmadi, admin: ${req.user.email}`);
       return res.status(404).json({ error: 'O‘qituvchi topilmadi' });
     }
     teacher.name = name || teacher.name;
     teacher.image = image || teacher.image;
     teacher.bio = bio || teacher.bio;
     await teacher.save();
+    logger.info(`O‘qituvchi yangilandi: ${teacher.name}, admin: ${req.user.email}`);
     res.json({ message: 'O‘qituvchi yangilandi!', teacher });
   } catch (err) {
-    console.error('PUT /teachers/:id xatosi:', err);
+    logger.error(`PUT /api/teachers/${req.params.id} xatosi: ${err.message}`);
     res.status(500).json({ error: 'Server xatosi' });
   }
 });
 
 /**
  * @swagger
- * /teachers/{id}:
+ * /api/teachers/{id}:
  *   delete:
- *     summary: O‘qituvchini o‘chirish (faqat adminlar uchun)
+ *     summary: O‘qituvchini o‘chirish (admin uchun)
  *     tags: [Teachers]
  *     security:
  *       - bearerAuth: []
@@ -269,21 +237,25 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
  *                   example: O‘qituvchi o‘chirildi!
  *       404:
  *         description: O‘qituvchi topilmadi
+ *       401:
+ *         description: Token topilmadi yoki noto‘g‘ri
  *       403:
  *         description: Faqat adminlar uchun
  *       500:
  *         description: Server xatosi
  */
-router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/:id', adminMiddleware, async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.params.id);
     if (!teacher) {
+      logger.warn(`O‘qituvchi o‘chirish urinishi: ID ${req.params.id} topilmadi, admin: ${req.user.email}`);
       return res.status(404).json({ error: 'O‘qituvchi topilmadi' });
     }
     await Teacher.deleteOne({ _id: req.params.id });
+    logger.info(`O‘qituvchi o‘chirildi: ${teacher.name}, admin: ${req.user.email}`);
     res.json({ message: 'O‘qituvchi o‘chirildi!' });
   } catch (err) {
-    console.error('DELETE /teachers/:id xatosi:', err);
+    logger.error(`DELETE /api/teachers/${req.params.id} xatosi: ${err.message}`);
     res.status(500).json({ error: 'Server xatosi' });
   }
 });

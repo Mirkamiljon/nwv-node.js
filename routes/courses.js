@@ -75,11 +75,11 @@ router.get('/', (req, res) => {
  *         description: Kurs muvaffaqiyatli qo‘shildi
  */
 router.post('/', (req, res) => {
-  const { title, teacherId } = req.body;
+  const {id, title, teacher } = req.body;
   const newCourse = {
     id: courses.length + 1,
     title,
-    teacherId,
+    teacher,
   };
   courses.push(newCourse);
   res.status(201).json(newCourse);
